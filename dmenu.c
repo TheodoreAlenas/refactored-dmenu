@@ -563,6 +563,14 @@ paste(void)
   drawmenu();
 }
 
+unsigned int
+calcneededlines(size_t inputs)
+{
+  if (inputs % columns)
+    return inputs / columns + 1;
+  return inputs / columns;
+}
+
 static void
 readstdin(void)
 {
@@ -582,7 +590,7 @@ readstdin(void)
   }
   if (items)
     items[i].text = NULL;
-  lines = MIN(lines, i);
+  lines = MIN(lines, calcneededlines(i));
 }
 
 static void

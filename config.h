@@ -21,8 +21,8 @@ static const char *palettes[PaletteLast][SchemeLast][2]  = {
     [SchemeOut] = { "#000000", "#00ffff" },
   },
   [PaletteRed] = {
-    [SchemeNorm] = { "#d9e5f1", "#440005" },
-    [SchemeSel] = { "#eeeeee", "#000000" },
+    [SchemeNorm] = { "#ff4455", "#0a0a0f" },
+    [SchemeSel] = { "#ffeeaa", "#aa1111" },
     [SchemeOut] = { "#000000", "#00ffff" },
   }
 };

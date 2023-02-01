@@ -158,6 +158,25 @@ drawgridinp(int x, int y, struct item *item)
 }
 
 static void
+drawhorizinp(int x, int w, struct item *item)
+{
+    x += inputw;
+    w = TEXTW("<");
+    if (curr->left) {
+      drw_setscheme(drw, scheme[SchemeNorm]);
+      drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
+    }
+    x += w;
+    for (item = curr; item != next; item = item->right)
+      x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - TEXTW(">")));
+    if (next) {
+      w = TEXTW(">");
+      drw_setscheme(drw, scheme[SchemeNorm]);
+      drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
+    }
+}
+
+static void
 drawmenu(void)
 {
   unsigned int curpos;
@@ -182,26 +201,11 @@ drawmenu(void)
     drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
   }
 
-  if (lines > 0) {
-    /* draw vertical list */
+  if (lines > 0)
     drawgridinp(x, y, item);
-  } else if (matches) {
-    /* draw horizontal list */
-    x += inputw;
-    w = TEXTW("<");
-    if (curr->left) {
-      drw_setscheme(drw, scheme[SchemeNorm]);
-      drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
-    }
-    x += w;
-    for (item = curr; item != next; item = item->right)
-      x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - TEXTW(">")));
-    if (next) {
-      w = TEXTW(">");
-      drw_setscheme(drw, scheme[SchemeNorm]);
-      drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
-    }
-  }
+  else if (matches)
+    drawhorizinp(x, w, item);
+
   drw_map(drw, win, 0, 0, mw, mh);
 }
 
@@ -725,12 +729,27 @@ setup(void)
   drawmenu();
 }
 
+enum Palette
+getpalette(const char *name)
+{
+  if (!strcmp(name, "red"))
+    return PaletteRed;
+  if (!strcmp(name, "r"))
+    return PaletteRed;
+  if (!strcmp(name, "blue"))
+    return PaletteBlue;
+  if (!strcmp(name, "b"))
+    return PaletteBlue;
+  return PaletteBlue;
+}
+
 static void
 usage(void)
 {
   die("usage: dmenu [-bfiv] [-l lines] [-o offset] [-g columns]\n"
       "             [-p prompt] [-fn font] [-m monitor] [-nb color]\n"
-      "             [-nf color] [-sb color] [-sf color] [-w windowid]");
+      "             [-c palette] [-nf color] [-sb color]\n"
+      "             [-sf color] [-w windowid]");
 }
 
 int
@@ -763,7 +782,7 @@ handleargs(int argc, char *argv[])
     else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
       prompt = argv[++i];
     else if (!strcmp(argv[i], "-c"))   /* baked colorscheme */
-      palette = atoi(argv[++i]);
+      palette = getpalette(argv[++i]);
     else if (!strcmp(argv[i], "-fn"))  /* font or font set */
       fonts[0] = argv[++i];
     else if (!strcmp(argv[i], "-nb"))  /* normal background color */

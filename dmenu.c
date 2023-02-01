@@ -36,6 +36,7 @@ static char *embed;
 static int bh, mw, mh;
 static int edgeoffset = 0;
 static int columns = 1;
+static int defaultitempos = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -294,7 +295,12 @@ match(void)
       matches = lsubstr;
     matchend = substrend;
   }
-  curr = sel = matches;
+  if (text[0])
+    curr = sel = matches;
+  else {
+    curr = items;
+    sel = items + defaultitempos;
+  }
   calcoffsets();
 }
 
@@ -755,7 +761,8 @@ static void
 usage(void)
 {
   die("usage: dmenu [-bfiv] [-l lines] [-o offset] [-g columns]\n"
-      "             [-p prompt] [-fn font] [-m monitor] [-nb color]\n"
+      "             [-d selected] [-p prompt] [-fn font]\n"
+      "             [-m monitor] [-nb color]\n"
       "             [-c palette] [-nf color] [-sb color]\n"
       "             [-sf color] [-w windowid]");
 }
@@ -785,6 +792,8 @@ handleargs(int argc, char *argv[])
       edgeoffset = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-g"))   /* grid columns */
       columns = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-d"))   /* default selected item */
+      defaultitempos = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-m"))   /* monitor */
       mon = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */

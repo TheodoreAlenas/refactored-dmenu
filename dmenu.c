@@ -89,10 +89,10 @@ calcoffsets(void)
     n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
   /* calculate which items will begin the next page and previous page */
   for (i = 0, next = curr; next; next = next->right)
-    if ((i += (lines > 0) ? bh : textw_clamp(next->text, n)) > n)
+    if ((i += (lines > 0) ? bh : textw_clamp(next->text, n)) > n * columns)
       break;
   for (i = 0, prev = curr; prev && prev->left; prev = prev->left)
-    if ((i += (lines > 0) ? bh : textw_clamp(prev->left->text, n)) > n)
+    if ((i += (lines > 0) ? bh : textw_clamp(prev->left->text, n)) > n * columns)
       break;
 }
 

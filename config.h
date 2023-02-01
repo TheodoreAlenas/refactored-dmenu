@@ -7,12 +7,26 @@ static const char *fonts[] = {
 	"Source Code Pro:size=18"
 };
 static const char *prompt      = NULL;      /* -p  option; prompt to the left of input field */
-static const char *colors[SchemeLast][2] = {
-	/*     fg         bg       */
-	[SchemeNorm] = { "#d9e5f1", "#0d1925" },
-	[SchemeSel] = { "#eeeeee", "#005577" },
-	[SchemeOut] = { "#000000", "#00ffff" },
+
+/* enums */
+enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+enum Palette { PaletteBlue, PaletteRed, PaletteLast }; /* color palettes */
+#define NUM_OF_SCHEMES 2
+
+/* foreground first, background second */
+static const char *palettes[PaletteLast][SchemeLast][2]  = {
+  [PaletteBlue] = {
+    [SchemeNorm] = { "#d9e5f1", "#0d1925" },
+    [SchemeSel] = { "#eeeeee", "#005577" },
+    [SchemeOut] = { "#000000", "#00ffff" },
+  },
+  [PaletteRed] = {
+    [SchemeNorm] = { "#d9e5f1", "#440005" },
+    [SchemeSel] = { "#eeeeee", "#000000" },
+    [SchemeOut] = { "#000000", "#00ffff" },
+  }
 };
+
 /* -l option; if nonzero, dmenu uses vertical list with given number of lines */
 static unsigned int lines      = 20;
 
@@ -20,4 +34,4 @@ static unsigned int lines      = 20;
  * Characters not considered part of a word while deleting words
  * for example: " /?\"&[]"
  */
-static const char worddelimiters[] = " ";
+static const char worddelimiters[] = " \t/.,!@#$%^&*(){}[]/=?+-_";

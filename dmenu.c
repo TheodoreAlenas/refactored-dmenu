@@ -25,9 +25,6 @@
 #define LENGTH(X)             (sizeof X / sizeof X[0])
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 
-/* enums */
-enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
-
 struct item {
   char *text;
   struct item *left, *right;
@@ -38,6 +35,7 @@ static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
 static int edgeoffset = 0;
+static int columns = 1;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -52,9 +50,10 @@ static Window root, parentwin, win;
 static XIC xic;
 
 static Drw *drw;
-static Clr *scheme[SchemeLast];
 
 #include "config.h"
+static Clr *scheme[SchemeLast];
+static enum Palette palette = PaletteBlue;
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 static char *(*fstrstr)(const char *, const char *) = strstr;
@@ -145,6 +144,20 @@ drawitem(struct item *item, int x, int y, int w)
 }
 
 static void
+drawgridinp(int x, int y, struct item *item)
+{
+  int col = 0;
+  int colw = (mw - x) / columns;
+  y += bh;
+  for (item = curr; item != next; item = item->right) {
+    drawitem(item, x + colw * col, y, colw);
+    col = (col + 1) % columns;
+    if (col == 0)
+      y += bh;
+  }
+}
+
+static void
 drawmenu(void)
 {
   unsigned int curpos;
@@ -171,8 +184,7 @@ drawmenu(void)
 
   if (lines > 0) {
     /* draw vertical list */
-    for (item = curr; item != next; item = item->right)
-      drawitem(item, x, y += bh, mw - x);
+    drawgridinp(x, y, item);
   } else if (matches) {
     /* draw horizontal list */
     x += inputw;
@@ -624,7 +636,7 @@ setup(void)
 #endif
   /* init appearance */
   for (j = 0; j < SchemeLast; j++)
-    scheme[j] = drw_scm_create(drw, colors[j], 2);
+    scheme[j] = drw_scm_create(drw, palettes[palette][j], 2);
 
   clip = XInternAtom(dpy, "CLIPBOARD",   False);
   utf8 = XInternAtom(dpy, "UTF8_STRING", False);
@@ -716,9 +728,9 @@ setup(void)
 static void
 usage(void)
 {
-  die("usage: dmenu [-bfiv] [-l lines] [-o offset] [-p prompt] [-fn font]\n"
-      "             [-m monitor] [-nb color] [-nf color] [-sb color]\n"
-      "             [-sf color] [-w windowid]");
+  die("usage: dmenu [-bfiv] [-l lines] [-o offset] [-g columns]\n"
+      "             [-p prompt] [-fn font] [-m monitor] [-nb color]\n"
+      "             [-nf color] [-sb color] [-sf color] [-w windowid]");
 }
 
 int
@@ -744,20 +756,24 @@ handleargs(int argc, char *argv[])
       lines = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-o"))   /* offset from edges */
       edgeoffset = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-g"))   /* grid columns */
+      columns = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-m"))   /* monitor */
       mon = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
       prompt = argv[++i];
+    else if (!strcmp(argv[i], "-c"))   /* baked colorscheme */
+      palette = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-fn"))  /* font or font set */
       fonts[0] = argv[++i];
     else if (!strcmp(argv[i], "-nb"))  /* normal background color */
-      colors[SchemeNorm][ColBg] = argv[++i];
+      palettes[palette][SchemeNorm][ColBg] = argv[++i];
     else if (!strcmp(argv[i], "-nf"))  /* normal foreground color */
-      colors[SchemeNorm][ColFg] = argv[++i];
+      palettes[palette][SchemeNorm][ColFg] = argv[++i];
     else if (!strcmp(argv[i], "-sb"))  /* selected background color */
-      colors[SchemeSel][ColBg] = argv[++i];
+      palettes[palette][SchemeSel][ColBg] = argv[++i];
     else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
-      colors[SchemeSel][ColFg] = argv[++i];
+      palettes[palette][SchemeSel][ColFg] = argv[++i];
     else if (!strcmp(argv[i], "-w"))   /* embedding window id */
       embed = argv[++i];
     else

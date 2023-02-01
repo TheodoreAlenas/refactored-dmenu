@@ -37,6 +37,7 @@ struct item {
 static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
+static int edgeoffset = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
@@ -672,6 +673,11 @@ setup(void)
     y = topbar ? 0 : wa.height - mh;
     mw = wa.width;
   }
+
+  int pixeloff = edgeoffset * mw / 100;
+  x += pixeloff;
+  mw -= 2 * pixeloff;
+
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
   inputw = mw / 3; /* input width: ~33% of monitor width */
   match();
@@ -710,16 +716,15 @@ setup(void)
 static void
 usage(void)
 {
-  die("usage: dmenu [-bfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
-      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]");
+  die("usage: dmenu [-bfiv] [-l lines] [-o offset] [-p prompt] [-fn font]\n"
+      "             [-m monitor] [-nb color] [-nf color] [-sb color]\n"
+      "             [-sf color] [-w windowid]");
 }
 
 int
-main(int argc, char *argv[])
+handleargs(int argc, char *argv[])
 {
-  XWindowAttributes wa;
   int i, fast = 0;
-
   for (i = 1; i < argc; i++)
     /* these options take no arguments */
     if (!strcmp(argv[i], "-v")) {      /* prints version information */
@@ -737,7 +742,9 @@ main(int argc, char *argv[])
     /* these options take one argument */
     else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
       lines = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-m"))
+    else if (!strcmp(argv[i], "-o"))   /* offset from edges */
+      edgeoffset = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-m"))   /* monitor */
       mon = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
       prompt = argv[++i];
@@ -756,6 +763,13 @@ main(int argc, char *argv[])
     else
       usage();
 
+  return fast;
+}
+
+static void
+initxwin(void) {
+  XWindowAttributes wa;
+
   if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
     fputs("warning: no locale support\n", stderr);
   if (!(dpy = XOpenDisplay(NULL)))
@@ -771,12 +785,20 @@ main(int argc, char *argv[])
   if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
   lrpad = drw->fonts->h;
+}
 
+static void
+considerbsdfail(void)
+{
 #ifdef __OpenBSD__
   if (pledge("stdio rpath", NULL) == -1)
     die("pledge");
 #endif
+}
 
+static void
+grabandread(int fast)
+{
   if (fast && !isatty(0)) {
     grabkeyboard();
     readstdin();
@@ -784,8 +806,16 @@ main(int argc, char *argv[])
     readstdin();
     grabkeyboard();
   }
+}
+
+int
+main(int argc, char *argv[])
+{
+  int fast = handleargs(argc, argv);
+  initxwin();
+  considerbsdfail();
+  grabandread(fast);
   setup();
   run();
-
   return 1; /* unreachable */
 }

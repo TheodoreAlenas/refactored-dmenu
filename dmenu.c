@@ -34,7 +34,7 @@ struct item {
 static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
-static int edgeoffset = 0;
+static int edgeoffset = -1;
 static int columns = 1;
 static int defaultitempos = 0;
 static int inputw = 0, promptw;
@@ -64,6 +64,18 @@ textw_clamp(const char *str, unsigned int n)
 {
   unsigned int w = drw_fontset_getwidth_clamp(drw, str, n) + lrpad;
   return MIN(w, n);
+}
+
+int
+findmintotalw(void)
+{
+  int maxlenfound = 0;
+  struct item *item;
+  for (item = items; item; item = item->right)
+    maxlenfound = MAX(TEXTW(item->text), maxlenfound);
+
+  int fullpromptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
+  return columns * maxlenfound + fullpromptw;
 }
 
 static void
@@ -132,14 +144,16 @@ cistrstr(const char *h, const char *n)
 }
 
 static int
-drawitem(struct item *item, int x, int y, int w)
+drawitem(struct item *item, int x, int y, int w, int is_odd)
 {
   if (item == sel)
     drw_setscheme(drw, scheme[SchemeSel]);
   else if (item->out)
     drw_setscheme(drw, scheme[SchemeOut]);
-  else
+  else if (is_odd)
     drw_setscheme(drw, scheme[SchemeNorm]);
+  else
+    drw_setscheme(drw, scheme[SchemeOdd]);
 
   return drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
 }
@@ -147,14 +161,16 @@ drawitem(struct item *item, int x, int y, int w)
 static void
 drawgridinp(int x, int y, struct item *item)
 {
-  int col = 0;
+  int col = 0, row = 0;
   int colw = (mw - x) / columns;
   y += bh;
   for (item = curr; item != next; item = item->right) {
-    drawitem(item, x + colw * col, y, colw);
+    drawitem(item, x + colw * col, y, colw, (col + row) % 2);
     col = (col + 1) % columns;
-    if (col == 0)
+    if (col == 0) {
       y += bh;
+      row += 1;
+    }
   }
 }
 
@@ -168,8 +184,9 @@ drawhorizinp(int x, int w, struct item *item)
       drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
     }
     x += w;
+    int i = 0;
     for (item = curr; item != next; item = item->right)
-      x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - TEXTW(">")));
+      x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - TEXTW(">")), i++ % 2);
     if (next) {
       w = TEXTW(">");
       drw_setscheme(drw, scheme[SchemeNorm]);
@@ -638,6 +655,20 @@ run(void)
 }
 
 static void
+shrinkandcenter(int *x, int wa_width)
+{
+  if (lines == 0)
+    ;
+  else if (edgeoffset >= 0)
+    mw -= 2 * edgeoffset * mw / 100;
+  else {
+    int mintotalw = findmintotalw();
+    mw = MIN(wa_width, MAX(mintotalw, 500));
+  }
+  *x = (wa_width - mw) / 2;
+}
+
+static void
 setup(void)
 {
   int x, y, i, j;
@@ -704,13 +735,11 @@ setup(void)
     mw = wa.width;
   }
 
-  int pixeloff = edgeoffset * mw / 100;
-  x += pixeloff;
-  mw -= 2 * pixeloff;
-
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
   inputw = mw / 3; /* input width: ~33% of monitor width */
   match();
+
+  shrinkandcenter(&x, wa.width);
 
   /* create menu window */
   swa.override_redirect = True;

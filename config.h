@@ -9,7 +9,7 @@ static const char *fonts[] = {
 static const char *prompt      = NULL;      /* -p  option; prompt to the left of input field */
 
 /* enums */
-enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+enum { SchemeNorm, SchemeOdd, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
 enum Palette { PaletteBlue, PaletteRed, PaletteLast }; /* color palettes */
 #define NUM_OF_SCHEMES 2
 
@@ -17,11 +17,13 @@ enum Palette { PaletteBlue, PaletteRed, PaletteLast }; /* color palettes */
 static const char *palettes[PaletteLast][SchemeLast][2]  = {
   [PaletteBlue] = {
     [SchemeNorm] = { "#d9e5f1", "#0d1925" },
+    [SchemeOdd] = { "#d9e5f1", "#0f1b29" },
     [SchemeSel] = { "#eeeeee", "#005577" },
     [SchemeOut] = { "#000000", "#00ffff" },
   },
   [PaletteRed] = {
     [SchemeNorm] = { "#ff4455", "#0a0a0f" },
+    [SchemeOdd] = { "#ff4455", "#0d0d13" },
     [SchemeSel] = { "#ffeeaa", "#aa1111" },
     [SchemeOut] = { "#000000", "#00ffff" },
   }

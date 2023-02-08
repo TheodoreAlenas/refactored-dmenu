@@ -67,13 +67,13 @@ textw_clamp(const char *str, unsigned int n)
 }
 
 int
-findmintotalw(void)
+getsuggestedwidth(void)
 {
   if (columns < 0)
-    die("columns is still negative when calling findmintotalw");
+    die("columns is still negative when calling getsuggestedwidth");
 
   int len, maxlenfound = 0;
-  int above_0 = 0, above_100 = 0, above_200 = 0, above_600 = 0;
+  int above_0 = 0, above_100 = 0, above_200 = 0, above_400 = 0;
   struct item *item;
   for (item = items; item; item = item->right) {
     len = TEXTW(item->text);
@@ -83,16 +83,16 @@ findmintotalw(void)
       above_100++;
     if (len > 200)
       above_200++;
-    if (len > 600)
-      above_600++;
+    if (len > 400)
+      above_400++;
   }
 
   if (above_0 > 10 * above_100)
     maxlenfound = MIN(100, maxlenfound);
   else if (above_100 > 10 * above_200)
     maxlenfound = MIN(200, maxlenfound);
-  else if (above_200 > 10 * above_600)
-    maxlenfound = MIN(600, maxlenfound);
+  else if (above_200 > 10 * above_400)
+    maxlenfound = MIN(400, maxlenfound);
 
   int fullpromptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
   return columns * maxlenfound + fullpromptw;
@@ -612,13 +612,13 @@ static void
 autosetcolumns()
 {
   columns = 1;
-  int mintotalw = findmintotalw();
+  int mintotalw = getsuggestedwidth();
 
   if (mintotalw <= 100)
     columns = 8;
   else if (mintotalw <= 200)
     columns = 4;
-  else if (mintotalw <= 600)
+  else if (mintotalw <= 400)
     columns = 3;
   else
     columns = 1;
@@ -632,8 +632,8 @@ calcneededlines(size_t inputs)
   return inputs / columns;
 }
 
-static void
-readstdin(void)
+int
+readstdingetnumlines(void)
 {
   char *line = NULL;
   size_t i, junk, size = 0;
@@ -651,10 +651,7 @@ readstdin(void)
   }
   if (items)
     items[i].text = NULL;
-
-  if (columns < 1)
-    autosetcolumns();
-  lines = MIN(lines, calcneededlines(i));
+  return i;
 }
 
 static void
@@ -698,7 +695,7 @@ run(void)
 static void
 shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
 {
-  int mintotalw = findmintotalw();
+  int mintotalw = getsuggestedwidth();
 
   if (edgeoffset >= 0)
     mw -= 2 * edgeoffset * mw / 100;
@@ -709,8 +706,8 @@ shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
   *x = (wa_width - mw) / 2;
 }
 
-static void
-setup(void)
+struct
+SetupData
 {
   int x, y, i, j;
   unsigned int du;
@@ -718,15 +715,54 @@ setup(void)
   XIM xim;
   Window w, dw, *dws;
   XWindowAttributes wa;
-  XClassHint ch = {"dmenu", "dmenu"};
+  XClassHint *ch;
 #ifdef XINERAMA
   XineramaScreenInfo *info;
   Window pw;
-  int a, di, n, area = 0;
+  int a, di, n, area;
 #endif
+};
+
+static void
+initwinandinput(struct SetupData *s)
+{
+  /* create menu window */
+  s->swa.override_redirect = True;
+  s->swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
+  s->swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+  win = XCreateWindow(dpy, parentwin, s->x, s->y, mw, mh, 0,
+                      CopyFromParent, CopyFromParent, CopyFromParent,
+                      CWOverrideRedirect | CWBackPixel | CWEventMask, &(s->swa));
+  XSetClassHint(dpy, win, s->ch);
+
+
+  /* input methods */
+  if ((s->xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
+    die("XOpenIM failed: could not open input device");
+
+  xic = XCreateIC(s->xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+                  XNClientWindow, win, XNFocusWindow, win, NULL);
+
+  XMapRaised(dpy, win);
+  if (embed) {
+    XSelectInput(dpy, parentwin, FocusChangeMask | SubstructureNotifyMask);
+    if (XQueryTree(dpy, parentwin, &(s->dw), &(s->w), &(s->dws), &(s->du)) && s->dws) {
+      for (s->i = 0; s->i < s->du && s->dws[s->i] != win; ++s->i)
+        XSelectInput(dpy, s->dws[s->i], FocusChangeMask);
+      XFree(s->dws);
+    }
+    grabfocus();
+  }
+  drw_resize(drw, mw, mh);
+  drawmenu();
+}
+
+static void
+preparegeometry(struct SetupData *s)
+{
   /* init appearance */
-  for (j = 0; j < SchemeLast; j++)
-    scheme[j] = drw_scm_create(drw, palettes[palette][j], 2);
+  for (s->j = 0; s->j < SchemeLast; s->j++)
+    scheme[s->j] = drw_scm_create(drw, palettes[palette][s->j], 2);
 
   clip = XInternAtom(dpy, "CLIPBOARD",   False);
   utf8 = XInternAtom(dpy, "UTF8_STRING", False);
@@ -768,50 +804,34 @@ setup(void)
   } else
 #endif
   {
-    if (!XGetWindowAttributes(dpy, parentwin, &wa))
+    if (!XGetWindowAttributes(dpy, parentwin, &(s->wa)))
       die("could not get embedding window attributes: 0x%lx",
           parentwin);
-    x = 0;
-    y = topbar ? 0 : wa.height - mh;
-    mw = wa.width;
+    s->x = 0;
+    s->y = topbar ? 0 : s->wa.height - mh;
+    mw = s->wa.width;
   }
 
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
   inputw = mw / 3; /* input width: ~33% of monitor width */
+}
+
+static void
+setup(void)
+{
+  XClassHint ch = { "dmenu", "dmenu" };
+  struct SetupData s;
+  s.ch = &ch;
+#ifdef XINERAMA
+  s.area = 0;
+#endif
+
+  preparegeometry(&s);
 
   match();
+  shrinkandcenter(&(s.x), &(s.y), mw, s.wa.height);
 
-  shrinkandcenter(&x, &y, mw, wa.height);
-
-  /* create menu window */
-  swa.override_redirect = True;
-  swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
-  swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
-  win = XCreateWindow(dpy, parentwin, x, y, mw, mh, 0,
-                      CopyFromParent, CopyFromParent, CopyFromParent,
-                      CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
-  XSetClassHint(dpy, win, &ch);
-
-
-  /* input methods */
-  if ((xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
-    die("XOpenIM failed: could not open input device");
-
-  xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
-                  XNClientWindow, win, XNFocusWindow, win, NULL);
-
-  XMapRaised(dpy, win);
-  if (embed) {
-    XSelectInput(dpy, parentwin, FocusChangeMask | SubstructureNotifyMask);
-    if (XQueryTree(dpy, parentwin, &dw, &w, &dws, &du) && dws) {
-      for (i = 0; i < du && dws[i] != win; ++i)
-        XSelectInput(dpy, dws[i], FocusChangeMask);
-      XFree(dws);
-    }
-    grabfocus();
-  }
-  drw_resize(drw, mw, mh);
-  drawmenu();
+  initwinandinput(&s);
 }
 
 enum Palette
@@ -919,16 +939,25 @@ considerbsdfail(void)
 #endif
 }
 
-static void
-grabandread(int fast)
+int
+grabandreadandgetnumlines(int fast)
 {
   if (fast && !isatty(0)) {
     grabkeyboard();
-    readstdin();
+    return readstdingetnumlines();
   } else {
-    readstdin();
+    int n = readstdingetnumlines();
     grabkeyboard();
+    return n;
   }
+}
+
+static void
+setlinesandcolumns(int num_of_lines)
+{
+  if (columns < 1)
+    autosetcolumns();
+  lines = MIN(lines, calcneededlines(num_of_lines));
 }
 
 int
@@ -937,7 +966,8 @@ main(int argc, char *argv[])
   int fast = handleargs(argc, argv);
   initxwin();
   considerbsdfail();
-  grabandread(fast);
+  int num_of_lines = grabandreadandgetnumlines(fast);
+  setlinesandcolumns(num_of_lines);
   setup();
   run();
   return 1; /* unreachable */

@@ -35,7 +35,7 @@ static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
 static int edgeoffset = -1;
-static int columns = 1;
+static int columns = -1;
 static int defaultitempos = 0;
 static int inputw = 0, promptw;
 static int lrpad; /* sum of left and right padding */
@@ -69,10 +69,30 @@ textw_clamp(const char *str, unsigned int n)
 int
 findmintotalw(void)
 {
-  int maxlenfound = 0;
+  if (columns < 0)
+    die("columns is still negative when calling findmintotalw");
+
+  int len, maxlenfound = 0;
+  int above_0 = 0, above_100 = 0, above_200 = 0, above_600 = 0;
   struct item *item;
-  for (item = items; item; item = item->right)
-    maxlenfound = MAX(TEXTW(item->text), maxlenfound);
+  for (item = items; item; item = item->right) {
+    len = TEXTW(item->text);
+    maxlenfound = MAX(len, maxlenfound);
+    above_0++;
+    if (len > 100)
+      above_100++;
+    if (len > 200)
+      above_200++;
+    if (len > 600)
+      above_600++;
+  }
+
+  if (above_0 > 10 * above_100)
+    maxlenfound = MIN(100, maxlenfound);
+  else if (above_100 > 10 * above_200)
+    maxlenfound = MIN(200, maxlenfound);
+  else if (above_200 > 10 * above_600)
+    maxlenfound = MIN(600, maxlenfound);
 
   int fullpromptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
   return columns * maxlenfound + fullpromptw;
@@ -95,6 +115,8 @@ static void
 calcoffsets(void)
 {
   int i, n;
+  if (columns < 0)
+    die("columns is still negative when calling calcoffsets");
 
   if (lines > 0)
     n = lines * bh;
@@ -586,6 +608,22 @@ paste(void)
   drawmenu();
 }
 
+static void
+autosetcolumns()
+{
+  columns = 1;
+  int mintotalw = findmintotalw();
+
+  if (mintotalw <= 100)
+    columns = 8;
+  else if (mintotalw <= 200)
+    columns = 4;
+  else if (mintotalw <= 600)
+    columns = 3;
+  else
+    columns = 1;
+}
+
 unsigned int
 calcneededlines(size_t inputs)
 {
@@ -613,6 +651,9 @@ readstdin(void)
   }
   if (items)
     items[i].text = NULL;
+
+  if (columns < 1)
+    autosetcolumns();
   lines = MIN(lines, calcneededlines(i));
 }
 
@@ -655,16 +696,16 @@ run(void)
 }
 
 static void
-shrinkandcenter(int *x, int wa_width)
+shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
 {
-  if (lines == 0)
-    ;
-  else if (edgeoffset >= 0)
+  int mintotalw = findmintotalw();
+
+  if (edgeoffset >= 0)
     mw -= 2 * edgeoffset * mw / 100;
-  else {
-    int mintotalw = findmintotalw();
+  else
     mw = MIN(wa_width, MAX(mintotalw, 500));
-  }
+
+  *y = (wa_height - mh) * 3 / 4;
   *x = (wa_width - mw) / 2;
 }
 
@@ -737,9 +778,10 @@ setup(void)
 
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
   inputw = mw / 3; /* input width: ~33% of monitor width */
+
   match();
 
-  shrinkandcenter(&x, wa.width);
+  shrinkandcenter(&x, &y, mw, wa.height);
 
   /* create menu window */
   swa.override_redirect = True;

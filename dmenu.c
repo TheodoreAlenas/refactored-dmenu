@@ -18,6 +18,7 @@
 
 #include "drw.h"
 #include "util.h"
+#include "get-suggested-width.h"
 
 /* macros */
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
@@ -37,7 +38,7 @@ static int bh, mw, mh;
 static int edgeoffset = -1;
 static int columns = -1;
 static int defaultitempos = 0;
-static int inputw = 0, promptw;
+static int inputw = 500, promptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
 static struct item *items = NULL;
@@ -66,36 +67,20 @@ textw_clamp(const char *str, unsigned int n)
   return MIN(w, n);
 }
 
-int
-getsuggestedwidth(void)
+void
+repeat_for_all_item_widths (FunctionToRepeat f, void *extra_arguments)
 {
-  if (columns < 0)
-    die("columns is still negative when calling getsuggestedwidth");
+  if (!items)
+    return;
 
-  int len, maxlenfound = 0;
-  int above_0 = 0, above_100 = 0, above_200 = 0, above_400 = 0;
-  struct item *item;
-  for (item = items; item; item = item->right) {
-    len = TEXTW(item->text);
-    maxlenfound = MAX(len, maxlenfound);
-    above_0++;
-    if (len > 100)
-      above_100++;
-    if (len > 200)
-      above_200++;
-    if (len > 400)
-      above_400++;
-  }
+  for (struct item *item = items; item->text; item++)
+    f(TEXTW(item->text), extra_arguments);
+}
 
-  if (above_0 > 10 * above_100)
-    maxlenfound = MIN(100, maxlenfound);
-  else if (above_100 > 10 * above_200)
-    maxlenfound = MIN(200, maxlenfound);
-  else if (above_200 > 10 * above_400)
-    maxlenfound = MIN(400, maxlenfound);
-
-  int fullpromptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
-  return columns * maxlenfound + fullpromptw;
+int
+get_suggested_width()
+{
+  return get_typical_width(10, repeat_for_all_item_widths);
 }
 
 static void
@@ -181,8 +166,9 @@ drawitem(struct item *item, int x, int y, int w, int is_odd)
 }
 
 static void
-drawgridinp(int x, int y, struct item *item)
+drawgridinp(int starting_x, int starting_y, struct item *item)
 {
+  int x = starting_x, y = starting_y;
   int col = 0, row = 0;
   int colw = (mw - x) / columns;
   y += bh;
@@ -608,20 +594,31 @@ paste(void)
   drawmenu();
 }
 
+int
+get_suggested_columns()
+{
+  int suggested_width = get_suggested_width();
+  if (suggested_width == 0)
+    return 1;
+
+  int enough_fields = inputw / suggested_width;
+
+  if (enough_fields > 4)
+    return enough_fields;
+  else if (suggested_width < 200)
+    return 4;
+  else if (suggested_width < 600)
+    return 3;
+  else if (suggested_width < 800)
+    return 2;
+  return 1;
+}
+
 static void
 autosetcolumns()
 {
   columns = 1;
-  int mintotalw = getsuggestedwidth();
-
-  if (mintotalw <= 100)
-    columns = 8;
-  else if (mintotalw <= 200)
-    columns = 4;
-  else if (mintotalw <= 400)
-    columns = 3;
-  else
-    columns = 1;
+  columns = get_suggested_columns();
 }
 
 unsigned int
@@ -695,7 +692,9 @@ run(void)
 static void
 shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
 {
-  int mintotalw = getsuggestedwidth();
+  int fullpromptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
+  int list_width = columns * get_suggested_width();
+  int mintotalw = MAX(fullpromptw + inputw, list_width);
 
   if (edgeoffset >= 0)
     mw -= 2 * edgeoffset * mw / 100;
@@ -813,11 +812,18 @@ preparegeometry(struct SetupData *s)
   }
 
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
-  inputw = mw / 3; /* input width: ~33% of monitor width */
 }
 
 static void
-setup(void)
+set_lines_and_columns(int num_of_lines)
+{
+  if (columns < 1 && lines > 0)
+    autosetcolumns();
+  lines = MIN(lines, calcneededlines(num_of_lines));
+}
+
+static void
+setup(int num_of_lines)
 {
   XClassHint ch = { "dmenu", "dmenu" };
   struct SetupData s;
@@ -826,6 +832,7 @@ setup(void)
   s.area = 0;
 #endif
 
+  set_lines_and_columns(num_of_lines);
   preparegeometry(&s);
 
   match();
@@ -952,14 +959,6 @@ grabandreadandgetnumlines(int fast)
   }
 }
 
-static void
-setlinesandcolumns(int num_of_lines)
-{
-  if (columns < 1)
-    autosetcolumns();
-  lines = MIN(lines, calcneededlines(num_of_lines));
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -967,8 +966,7 @@ main(int argc, char *argv[])
   initxwin();
   considerbsdfail();
   int num_of_lines = grabandreadandgetnumlines(fast);
-  setlinesandcolumns(num_of_lines);
-  setup();
+  setup(num_of_lines);
   run();
   return 1; /* unreachable */
 }

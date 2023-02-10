@@ -694,9 +694,14 @@ run(void)
 static void
 shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
 {
-  int fullpromptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
+  /*
+   * This makes no sense, I can't tell why it works when it
+   * shouldn't. Before you touch it, make sure you've
+   * routed mw properly so it has a clear role and a clear
+   * path it follows through the code.
+   */
   int list_width = columns * get_suggested_width();
-  int mintotalw = MAX(fullpromptw + inputw, list_width);
+  int mintotalw = promptw + MAX(inputw, list_width);
 
   if (edgeoffset >= 0)
     mw -= 2 * edgeoffset * mw / 100;

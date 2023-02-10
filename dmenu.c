@@ -168,17 +168,19 @@ drawitem(struct item *item, int x, int y, int w, int is_odd)
 static void
 drawgridinp(int starting_x, int starting_y, struct item *item)
 {
-  int x = starting_x, y = starting_y;
+  int left_most = starting_x, top_most = starting_y + bh;
   int col = 0, row = 0;
-  int colw = (mw - x) / columns;
-  y += bh;
+  int colw = (mw - left_most) / columns;
+
   for (item = curr; item != next; item = item->right) {
-    drawitem(item, x + colw * col, y, colw, (col + row) % 2);
-    col = (col + 1) % columns;
-    if (col == 0) {
-      y += bh;
-      row += 1;
+    if (row == lines) {
+      row = 0;
+      col += 1;
     }
+    int x = left_most + colw * col;
+    int y = top_most + bh * row;
+    drawitem(item, x, y, colw, (col + row) % 2);
+    row++;
   }
 }
 

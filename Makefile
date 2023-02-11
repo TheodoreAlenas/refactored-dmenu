@@ -3,7 +3,7 @@
 
 include config.mk
 
-SRC = drw.c dmenu.c get-suggested-width.c stest.c util.c
+SRC = drw.c dmenu.c typical-value.c stest.c util.c
 OBJ = $(SRC:.c=.o)
 
 all: options dmenu stest
@@ -19,8 +19,12 @@ options:
 
 $(OBJ): arg.h config.h config.mk drw.h
 
-dmenu: dmenu.o get-suggested-width.o drw.o util.o
-	$(CC) -o $@ dmenu.o get-suggested-width.o drw.o util.o $(LDFLAGS)
+dmenu: dmenu.o typical-value.o drw.o util.o
+	$(CC) -o $@ dmenu.o typical-value.o drw.o util.o $(LDFLAGS)
+
+test: typical-value.o typical-value-test.o util.o
+	$(CC) -o $@ typical-value.o typical-value-test.o util.o
+	./test
 
 stest: stest.o
 	$(CC) -o $@ stest.o $(LDFLAGS)

@@ -18,7 +18,7 @@
 
 #include "drw.h"
 #include "util.h"
-#include "get-suggested-width.h"
+#include "typical-value.h"
 
 /* macros */
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
@@ -80,7 +80,14 @@ repeat_for_all_item_widths (FunctionToRepeat f, void *extra_arguments)
 int
 get_suggested_width()
 {
-  return get_typical_width(10, repeat_for_all_item_widths);
+  TypicalValueArgs args;
+  args.value_group_width = 16;
+  args.value_group_number = 32;
+  args.typicality = 10;
+  args.min_total_values_to_care = 50;
+  args.for_each_value = repeat_for_all_item_widths;
+
+  return get_typical_value(args);
 }
 
 static void

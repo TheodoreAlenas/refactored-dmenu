@@ -87,3 +87,9 @@ make
 mv dmenu ~/.local/bin/dmenu  # Sorry! I'll fix 'make install'
 ```
 
+## Be careful!
+
+- Only `./dmenu --help` is up to date for now
+- Arguments aren't compatible with the original DMenu
+- Patches, the default DMenu extensions, are meant to break
+

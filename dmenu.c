@@ -11,9 +11,6 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
-#ifdef XINERAMA
-#include <X11/extensions/Xinerama.h>
-#endif
 #include <X11/Xft/Xft.h>
 
 #include "drw.h"
@@ -729,11 +726,6 @@ SetupData
   Window w, dw, *dws;
   XWindowAttributes wa;
   XClassHint *ch;
-#ifdef XINERAMA
-  XineramaScreenInfo *info;
-  Window pw;
-  int a, di, n, area;
-#endif
 };
 
 static void
@@ -784,46 +776,12 @@ preparegeometry(struct SetupData *s)
   bh = drw->fonts->h + 2;
   lines = MAX(lines, 0);
   mh = (lines + 1) * bh;
-#ifdef XINERAMA
-  i = 0;
-  if (parentwin == root && (info = XineramaQueryScreens(dpy, &n))) {
-    XGetInputFocus(dpy, &w, &di);
-    if (mon >= 0 && mon < n)
-      i = mon;
-    else if (w != root && w != PointerRoot && w != None) {
-      /* find top-level window containing current input focus */
-      do {
-        if (XQueryTree(dpy, (pw = w), &dw, &w, &dws, &du) && dws)
-          XFree(dws);
-      } while (w != root && w != pw);
-      /* find xinerama screen with which the window intersects most */
-      if (XGetWindowAttributes(dpy, pw, &wa))
-        for (j = 0; j < n; j++)
-          if ((a = INTERSECT(wa.x, wa.y, wa.width, wa.height, info[j])) > area) {
-            area = a;
-            i = j;
-          }
-    }
-    /* no focused window is on screen, so use pointer location instead */
-    if (mon < 0 && !area && XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du))
-      for (i = 0; i < n; i++)
-        if (INTERSECT(x, y, 1, 1, info[i]) != 0)
-          break;
-
-    x = info[i].x_org;
-    y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
-    mw = info[i].width;
-    XFree(info);
-  } else
-#endif
-  {
-    if (!XGetWindowAttributes(dpy, parentwin, &(s->wa)))
-      die("could not get embedding window attributes: 0x%lx",
-          parentwin);
-    s->x = 0;
-    s->y = topbar ? 0 : s->wa.height - mh;
-    mw = s->wa.width;
-  }
+  if (!XGetWindowAttributes(dpy, parentwin, &(s->wa)))
+    die("could not get embedding window attributes: 0x%lx",
+        parentwin);
+  s->x = 0;
+  s->y = topbar ? 0 : s->wa.height - mh;
+  mw = s->wa.width;
 
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 }
@@ -842,9 +800,6 @@ setup(int num_of_lines)
   XClassHint ch = { "dmenu", "dmenu" };
   struct SetupData s;
   s.ch = &ch;
-#ifdef XINERAMA
-  s.area = 0;
-#endif
 
   set_lines_and_columns(num_of_lines);
   preparegeometry(&s);

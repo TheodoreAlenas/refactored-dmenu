@@ -60,23 +60,28 @@ are roadblocks such as making the number of
 columns depend on the amount of input, which
 is absurd. I'm the ruler of the machine.
 
-This is my first repository and there are
-many questionable decisions, such as keeping the
-name of the program as 'dmenu', please inform me
-if you know something I don't know about regarding
-licencing.
+This is my first repository and I'm inexperienced.
+Please let me know of anything I'm doing wrong.
 
 ## Priorities
 
-- Separate into modules, meaning multiple files
-- Write tests, because I fear my own code
-- Remove globals, they *have* caused problems
-- Still support BSD hopefully
+- Separate into files until the includes are clean
+- Make the code testable, it has been a need
+- Remove all the globals
 
-If someone can convince me to still support Xinerama,
-I will. But so far I can't see a purpose for it.
+## On the other hand
 
-Also I don't have a BSD environment myself.
+- The Xinerama support has been removed
+- BSD compatibility hasn't been tested
+- Arguments are incompatible for now
+- There is no reliable manual, for now
+- DMenu patches won't work
+
+The point is that you'll be able to modify it
+by hand, by writing more code like I wished to.
+One would argue that the point of DMenu was to be
+easy to modify from the beginning,
+but that's not been my experience.
 
 ## Usage
 
@@ -86,10 +91,3 @@ make
 ./dmenu --help  # see an overview of the commands
 mv dmenu ~/.local/bin/dmenu  # Sorry! I'll fix 'make install'
 ```
-
-## Be careful!
-
-- Only `./dmenu --help` is up to date for now
-- Arguments aren't compatible with the original DMenu
-- Patches, the default DMenu extensions, are meant to break
-

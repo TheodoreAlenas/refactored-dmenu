@@ -16,6 +16,7 @@
 #include "drw.h"
 #include "util.h"
 #include "typical-value.h"
+#include "x-interface.h"
 
 /* macros */
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
@@ -27,6 +28,24 @@ struct item {
   char *text;
   struct item *left, *right;
   int out;
+};
+
+struct container {
+  int width;
+  int height;
+};
+
+struct dimentions {
+  int menu_width;
+  int menu_height;
+
+  int left_and_right_padding;
+
+  int line_height;
+  int number_of_entries;
+
+  int input_width;
+  int prompt_width;
 };
 
 static char text[BUFSIZ] = "";
@@ -101,7 +120,7 @@ appenditem(struct item *item, struct item **list, struct item **last)
 }
 
 static void
-calcoffsets(void)
+set_pages(void)
 {
   int i, n;
   if (columns < 0)
@@ -332,7 +351,7 @@ match(void)
     curr = items;
     sel = items + defaultitempos;
   }
-  calcoffsets();
+  set_pages();
 }
 
 static void
@@ -492,11 +511,11 @@ insert:
     if (next) {
       /* jump to end of list and position items in reverse */
       curr = matchend;
-      calcoffsets();
+      set_pages();
       curr = prev;
-      calcoffsets();
+      set_pages();
       while (next && (curr = curr->right))
-        calcoffsets();
+        set_pages();
     }
     sel = matchend;
     break;
@@ -510,7 +529,7 @@ insert:
       break;
     }
     sel = curr = matches;
-    calcoffsets();
+    set_pages();
     break;
   case XK_Left:
   case XK_KP_Left:
@@ -525,7 +544,7 @@ insert:
   case XK_KP_Up:
     if (sel && sel->left && (sel = sel->left)->right == curr) {
       curr = prev;
-      calcoffsets();
+      set_pages();
     }
     break;
   case XK_Next:
@@ -533,14 +552,14 @@ insert:
     if (!next)
       return;
     sel = curr = next;
-    calcoffsets();
+    set_pages();
     break;
   case XK_Prior:
   case XK_KP_Prior:
     if (!prev)
       return;
     sel = curr = prev;
-    calcoffsets();
+    set_pages();
     break;
   case XK_Return:
   case XK_KP_Enter:
@@ -565,7 +584,7 @@ insert:
   case XK_KP_Down:
     if (sel && sel->right && (sel = sel->right) == next) {
       curr = next;
-      calcoffsets();
+      set_pages();
     }
     break;
   case XK_Tab:
@@ -716,52 +735,6 @@ shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
   *x = (wa_width - mw) / 2;
 }
 
-struct
-SetupData
-{
-  int x, y, i, j;
-  unsigned int du;
-  XSetWindowAttributes swa;
-  XIM xim;
-  Window w, dw, *dws;
-  XWindowAttributes wa;
-  XClassHint *ch;
-};
-
-static void
-initwinandinput(struct SetupData *s)
-{
-  /* create menu window */
-  s->swa.override_redirect = True;
-  s->swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
-  s->swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
-  win = XCreateWindow(dpy, parentwin, s->x, s->y, mw, mh, 0,
-                      CopyFromParent, CopyFromParent, CopyFromParent,
-                      CWOverrideRedirect | CWBackPixel | CWEventMask, &(s->swa));
-  XSetClassHint(dpy, win, s->ch);
-
-
-  /* input methods */
-  if ((s->xim = XOpenIM(dpy, NULL, NULL, NULL)) == NULL)
-    die("XOpenIM failed: could not open input device");
-
-  xic = XCreateIC(s->xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
-                  XNClientWindow, win, XNFocusWindow, win, NULL);
-
-  XMapRaised(dpy, win);
-  if (embed) {
-    XSelectInput(dpy, parentwin, FocusChangeMask | SubstructureNotifyMask);
-    if (XQueryTree(dpy, parentwin, &(s->dw), &(s->w), &(s->dws), &(s->du)) && s->dws) {
-      for (s->i = 0; s->i < s->du && s->dws[s->i] != win; ++s->i)
-        XSelectInput(dpy, s->dws[s->i], FocusChangeMask);
-      XFree(s->dws);
-    }
-    grabfocus();
-  }
-  drw_resize(drw, mw, mh);
-  drawmenu();
-}
-
 static void
 preparegeometry(struct SetupData *s)
 {
@@ -807,7 +780,20 @@ setup(int num_of_lines)
   match();
   shrinkandcenter(&(s.x), &(s.y), mw, s.wa.height);
 
+  s.embed = embed;
+  s.mw = mw;
+  s.mh = mh;
+  s.scheme = scheme;
+  s.dpy = dpy;
+  s.xic = xic;
+  s.parentwin = parentwin;
+  s.win = win;
+  s.drw = drw;
+  s.grabfocus = grabfocus;
   initwinandinput(&s);
+  win = s.win;
+  xic = s.xic;
+  drawmenu();
 }
 
 enum Palette

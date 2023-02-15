@@ -1,5 +1,9 @@
 /* See LICENSE file for copyright and license details. */
 /* Default settings; can be overriden by command line. */
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#include "scheme_types.h"
 
 static int topbar = 0;                      /* -b  option; if 0, dmenu appears at bottom     */
 /* -fn option overrides fonts[0]; default X11 font or font set */
@@ -9,8 +13,6 @@ static const char *fonts[] = {
 static const char *prompt      = NULL;      /* -p  option; prompt to the left of input field */
 
 /* enums */
-enum { SchemeNorm, SchemeOdd, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
-enum Palette { PaletteBlue, PaletteRed, PaletteLast }; /* color palettes */
 #define NUM_OF_SCHEMES 2
 
 /* foreground first, background second */
@@ -37,3 +39,5 @@ static unsigned int lines      = 20;
  * for example: " /?\"&[]"
  */
 static const char worddelimiters[] = " \t/.,!@#$%^&*(){}[]/=?+-_";
+
+#endif

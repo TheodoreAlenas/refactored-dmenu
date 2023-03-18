@@ -47,9 +47,36 @@ struct dimentions {
   int prompt_width;
 };
 
-static struct SetupData s = {.embed = NULL, .dpy = NULL};
+struct
+SomethingElse
+{
+  int x, y, i, j;
+  unsigned int du;
+  XSetWindowAttributes swa;
+  XIM xim;
+  Window w, dw, *dws;
+  XWindowAttributes wa;
+  XClassHint *ch;
+
+  char *embed;
+  int mw, mh;
+  Clr **scheme;
+  Display *dpy;
+  XIC xic;
+  Window parentwin, win;
+  Drw *drw;
+};
+
+
+
+static struct SetupData s = {
+  .embed = NULL,
+  .dpy = NULL,
+  .mw = 0,
+  .mh = 0
+};
 static char text[BUFSIZ] = "";
-static int bh, mw, mh;
+static int bh;
 static int edgeoffset = -1;
 static int columns = -1;
 static int defaultitempos = 0;
@@ -127,7 +154,7 @@ set_pages(void)
   if (lines > 0)
     n = lines * bh;
   else
-    n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
+    n = s.mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
   /* calculate which items will begin the next page and previous page */
   for (i = 0, next = curr; next; next = next->right)
     if ((i += (lines > 0) ? bh : textw_clamp(next->text, n)) > n * columns)
@@ -191,7 +218,7 @@ drawgridinp(int starting_x, int starting_y, struct item *item)
 {
   int left_most = starting_x, top_most = starting_y + bh;
   int col = 0, row = 0;
-  int colw = (mw - left_most) / columns;
+  int colw = (s.mw - left_most) / columns;
 
   for (item = curr; item != next; item = item->right) {
     if (row == lines) {
@@ -217,11 +244,11 @@ drawhorizinp(int x, int w, struct item *item)
     x += w;
     int i = 0;
     for (item = curr; item != next; item = item->right)
-      x = drawitem(item, x, 0, textw_clamp(item->text, mw - x - TEXTW(">")), i++ % 2);
+      x = drawitem(item, x, 0, textw_clamp(item->text, s.mw - x - TEXTW(">")), i++ % 2);
     if (next) {
       w = TEXTW(">");
       drw_setscheme(drw, scheme[SchemeNorm]);
-      drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
+      drw_text(drw, s.mw - w, 0, w, bh, lrpad / 2, ">", 0);
     }
 }
 
@@ -233,14 +260,14 @@ drawmenu(void)
   int x = 0, y = 0, w;
 
   drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_rect(drw, 0, 0, mw, mh, 1, 1);
+  drw_rect(drw, 0, 0, s.mw, s.mh, 1, 1);
 
   if (prompt && *prompt) {
     drw_setscheme(drw, scheme[SchemeSel]);
     x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
   }
   /* draw input field */
-  w = (lines > 0 || !matches) ? mw - x : inputw;
+  w = (lines > 0 || !matches) ? s.mw - x : inputw;
   drw_setscheme(drw, scheme[SchemeNorm]);
   drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
 
@@ -255,7 +282,7 @@ drawmenu(void)
   else if (matches)
     drawhorizinp(x, w, item);
 
-  drw_map(drw, win, 0, 0, mw, mh);
+  drw_map(drw, win, 0, 0, s.mw, s.mh);
 }
 
 static void
@@ -655,7 +682,7 @@ run(void)
       exit(1);
     case Expose:
       if (ev.xexpose.count == 0)
-        drw_map(drw, win, 0, 0, mw, mh);
+        drw_map(drw, win, 0, 0, s.mw,s. mh);
       break;
     case FocusIn:
       /* regrab focus from parent window */
@@ -690,12 +717,12 @@ shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
   int mintotalw = promptw + MAX(inputw, list_width);
 
   if (edgeoffset >= 0)
-    mw -= 2 * edgeoffset * mw / 100;
+    s.mw -= 2 * edgeoffset * s.mw / 100;
   else
-    mw = MIN(wa_width, MAX(mintotalw, 500));
+    s.mw = MIN(wa_width, MAX(mintotalw, 500));
 
-  *y = (wa_height - mh) * 3 / 4;
-  *x = (wa_width - mw) / 2;
+  *y = (wa_height - s.mh) * 3 / 4;
+  *x = (wa_width - s.mw) / 2;
 }
 
 static void
@@ -711,13 +738,13 @@ preparegeometry(struct SetupData *s)  // TODO: move to dir
   /* calculate menu geometry */
   bh = drw->fonts->h + 2;
   lines = MAX(lines, 0);
-  mh = (lines + 1) * bh;
+  s->mh = (lines + 1) * bh;
   if (!XGetWindowAttributes(s->dpy, parentwin, &(s->wa)))
     die("could not get embedding window attributes: 0x%lx",
         parentwin);
   s->x = 0;
-  s->y = topbar ? 0 : s->wa.height - mh;
-  mw = s->wa.width;
+  s->y = topbar ? 0 : s->wa.height - s->mh;
+  s->mw = s->wa.width;
 
   promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 }
@@ -740,10 +767,8 @@ setup(int num_of_lines)
   preparegeometry(&s);
 
   match();
-  shrinkandcenter(&(s.x), &(s.y), mw, s.wa.height);
+  shrinkandcenter(&(s.x), &(s.y), s.mw, s.wa.height);
 
-  s.mw = mw;
-  s.mh = mh;
   s.scheme = scheme;
   s.dpy = s.dpy;
   s.xic = xic;

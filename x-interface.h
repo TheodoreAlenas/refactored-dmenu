@@ -8,6 +8,7 @@
 
 #include "scheme_types.h"
 #include "drw.h"
+#include "config.h"
 
 struct
 SetupData
@@ -22,7 +23,7 @@ SetupData
 
   char *embed;
   int mw, mh;
-  Clr **scheme;
+  Clr *scheme[SchemeLast];
   Display *dpy;
   XIC xic;
   Window parentwin, win;

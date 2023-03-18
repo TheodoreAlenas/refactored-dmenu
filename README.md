@@ -57,8 +57,7 @@ one can add any feature within a reasonable
 amount of time. I wish this was the standard
 for all software to be honest. Currently there
 are roadblocks such as making the number of
-columns depend on the amount of input, which
-is absurd. I'm the ruler of the machine.
+columns depend on the amount of input.
 
 This is my first repository and I'm inexperienced.
 Please let me know of anything I'm doing wrong.

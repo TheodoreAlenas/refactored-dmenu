@@ -47,27 +47,6 @@ struct dimentions {
   int prompt_width;
 };
 
-struct
-SomethingElse
-{
-  int x, y, i, j;
-  unsigned int du;
-  XSetWindowAttributes swa;
-  XIM xim;
-  Window w, dw, *dws;
-  XWindowAttributes wa;
-  XClassHint *ch;
-
-  char *embed;
-  int mw, mh;
-  Clr **scheme;
-  Display *dpy;
-  XIC xic;
-  Window parentwin, win;
-  Drw *drw;
-};
-
-
 
 static struct SetupData s = {
   .embed = NULL,
@@ -95,7 +74,6 @@ static XIC xic;
 static Drw *drw;
 
 #include "config.h"
-static Clr *scheme[SchemeLast];
 static enum Palette palette = PaletteBlue;
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
@@ -171,7 +149,7 @@ cleanup(void)  // TODO: move to other dir
 
   XUngrabKey(s.dpy, AnyKey, AnyModifier, root);
   for (i = 0; i < SchemeLast; i++)
-    free(scheme[i]);
+    free(s.scheme[i]);
   for (i = 0; items && items[i].text; ++i)
     free(items[i].text);
   free(items);
@@ -202,13 +180,13 @@ static int
 drawitem(struct item *item, int x, int y, int w, int is_odd)
 {
   if (item == sel)
-    drw_setscheme(drw, scheme[SchemeSel]);
+    drw_setscheme(drw, s.scheme[SchemeSel]);
   else if (item->out)
-    drw_setscheme(drw, scheme[SchemeOut]);
+    drw_setscheme(drw, s.scheme[SchemeOut]);
   else if (is_odd)
-    drw_setscheme(drw, scheme[SchemeNorm]);
+    drw_setscheme(drw, s.scheme[SchemeNorm]);
   else
-    drw_setscheme(drw, scheme[SchemeOdd]);
+    drw_setscheme(drw, s.scheme[SchemeOdd]);
 
   return drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
 }
@@ -238,7 +216,7 @@ drawhorizinp(int x, int w, struct item *item)
     x += inputw;
     w = TEXTW("<");
     if (curr->left) {
-      drw_setscheme(drw, scheme[SchemeNorm]);
+      drw_setscheme(drw, s.scheme[SchemeNorm]);
       drw_text(drw, x, 0, w, bh, lrpad / 2, "<", 0);
     }
     x += w;
@@ -247,7 +225,7 @@ drawhorizinp(int x, int w, struct item *item)
       x = drawitem(item, x, 0, textw_clamp(item->text, s.mw - x - TEXTW(">")), i++ % 2);
     if (next) {
       w = TEXTW(">");
-      drw_setscheme(drw, scheme[SchemeNorm]);
+      drw_setscheme(drw, s.scheme[SchemeNorm]);
       drw_text(drw, s.mw - w, 0, w, bh, lrpad / 2, ">", 0);
     }
 }
@@ -259,21 +237,21 @@ drawmenu(void)
   struct item *item;
   int x = 0, y = 0, w;
 
-  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_setscheme(drw, s.scheme[SchemeNorm]);
   drw_rect(drw, 0, 0, s.mw, s.mh, 1, 1);
 
   if (prompt && *prompt) {
-    drw_setscheme(drw, scheme[SchemeSel]);
+    drw_setscheme(drw, s.scheme[SchemeSel]);
     x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
   }
   /* draw input field */
   w = (lines > 0 || !matches) ? s.mw - x : inputw;
-  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_setscheme(drw, s.scheme[SchemeNorm]);
   drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
 
   curpos = TEXTW(text) - TEXTW(&text[cursor]);
   if ((curpos += lrpad / 2 - 1) < w) {
-    drw_setscheme(drw, scheme[SchemeNorm]);
+    drw_setscheme(drw, s.scheme[SchemeNorm]);
     drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
   }
 
@@ -730,7 +708,7 @@ preparegeometry(struct SetupData *s)  // TODO: move to dir
 {
   /* init appearance */
   for (s->j = 0; s->j < SchemeLast; s->j++)
-    scheme[s->j] = drw_scm_create(drw, palettes[palette][s->j], 2);
+    s->scheme[s->j] = drw_scm_create(drw, palettes[palette][s->j], 2);
 
   clip = XInternAtom(s->dpy, "CLIPBOARD",   False);
   utf8 = XInternAtom(s->dpy, "UTF8_STRING", False);
@@ -769,7 +747,6 @@ setup(int num_of_lines)
   match();
   shrinkandcenter(&(s.x), &(s.y), s.mw, s.wa.height);
 
-  s.scheme = scheme;
   s.dpy = s.dpy;
   s.xic = xic;
   s.parentwin = parentwin;

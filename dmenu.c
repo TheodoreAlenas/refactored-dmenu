@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <X11/Xlib.h>
@@ -48,8 +47,8 @@ struct dimentions {
   int prompt_width;
 };
 
+static struct SetupData s = {.embed = NULL, .dpy = NULL};
 static char text[BUFSIZ] = "";
-static char *embed;
 static int bh, mw, mh;
 static int edgeoffset = -1;
 static int columns = -1;
@@ -63,7 +62,6 @@ static struct item *prev, *curr, *next, *sel;
 static int mon = -1, screen;
 
 static Atom clip, utf8;
-static Display *dpy;
 static Window root, parentwin, win;
 static XIC xic;
 
@@ -140,19 +138,19 @@ set_pages(void)
 }
 
 static void
-cleanup(void)
+cleanup(void)  // TODO: move to other dir
 {
   size_t i;
 
-  XUngrabKey(dpy, AnyKey, AnyModifier, root);
+  XUngrabKey(s.dpy, AnyKey, AnyModifier, root);
   for (i = 0; i < SchemeLast; i++)
     free(scheme[i]);
   for (i = 0; items && items[i].text; ++i)
     free(items[i].text);
   free(items);
   drw_free(drw);
-  XSync(dpy, False);
-  XCloseDisplay(dpy);
+  XSync(s.dpy, False);
+  XCloseDisplay(s.dpy);
 }
 
 static char *
@@ -258,41 +256,6 @@ drawmenu(void)
     drawhorizinp(x, w, item);
 
   drw_map(drw, win, 0, 0, mw, mh);
-}
-
-static void
-grabfocus(void)
-{
-  struct timespec ts = { .tv_sec = 0, .tv_nsec = 10000000  };
-  Window focuswin;
-  int i, revertwin;
-
-  for (i = 0; i < 100; ++i) {
-    XGetInputFocus(dpy, &focuswin, &revertwin);
-    if (focuswin == win)
-      return;
-    XSetInputFocus(dpy, win, RevertToParent, CurrentTime);
-    nanosleep(&ts, NULL);
-  }
-  die("cannot grab focus");
-}
-
-static void
-grabkeyboard(void)
-{
-  struct timespec ts = { .tv_sec = 0, .tv_nsec = 1000000  };
-  int i;
-
-  if (embed)
-    return;
-  /* try to grab keyboard, we may have to wait for another process to ungrab */
-  for (i = 0; i < 1000; i++) {
-    if (XGrabKeyboard(dpy, DefaultRootWindow(dpy), True, GrabModeAsync,
-                      GrabModeAsync, CurrentTime) == GrabSuccess)
-      return;
-    nanosleep(&ts, NULL);
-  }
-  die("cannot grab keyboard");
 }
 
 static void
@@ -446,7 +409,7 @@ keypress(XKeyEvent *ev)
       break;
     case XK_y: /* paste selection */
     case XK_Y:
-      XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
+      XConvertSelection(s.dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
                         utf8, utf8, win, CurrentTime);
       return;
     case XK_Left:
@@ -610,7 +573,7 @@ paste(void)
   Atom da;
 
   /* we have been given the current selection, now insert it into input */
-  if (XGetWindowProperty(dpy, win, utf8, 0, (sizeof text / 4) + 1, False,
+  if (XGetWindowProperty(s.dpy, win, utf8, 0, (sizeof text / 4) + 1, False,
                      utf8, &da, &di, &dl, &dl, (unsigned char **)&p)
       == Success && p) {
     insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t)strlen(p));
@@ -681,7 +644,7 @@ run(void)
 {
   XEvent ev;
 
-  while (!XNextEvent(dpy, &ev)) {
+  while (!XNextEvent(s.dpy, &ev)) {
     if (XFilterEvent(&ev, win))
       continue;
     switch(ev.type) {
@@ -697,7 +660,7 @@ run(void)
     case FocusIn:
       /* regrab focus from parent window */
       if (ev.xfocus.window != win)
-        grabfocus();
+        grabfocus(&s);
       break;
     case KeyPress:
       keypress(&ev.xkey);
@@ -708,7 +671,7 @@ run(void)
       break;
     case VisibilityNotify:
       if (ev.xvisibility.state != VisibilityUnobscured)
-        XRaiseWindow(dpy, win);
+        XRaiseWindow(s.dpy, win);
       break;
     }
   }
@@ -736,20 +699,20 @@ shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
 }
 
 static void
-preparegeometry(struct SetupData *s)
+preparegeometry(struct SetupData *s)  // TODO: move to dir
 {
   /* init appearance */
   for (s->j = 0; s->j < SchemeLast; s->j++)
     scheme[s->j] = drw_scm_create(drw, palettes[palette][s->j], 2);
 
-  clip = XInternAtom(dpy, "CLIPBOARD",   False);
-  utf8 = XInternAtom(dpy, "UTF8_STRING", False);
+  clip = XInternAtom(s->dpy, "CLIPBOARD",   False);
+  utf8 = XInternAtom(s->dpy, "UTF8_STRING", False);
 
   /* calculate menu geometry */
   bh = drw->fonts->h + 2;
   lines = MAX(lines, 0);
   mh = (lines + 1) * bh;
-  if (!XGetWindowAttributes(dpy, parentwin, &(s->wa)))
+  if (!XGetWindowAttributes(s->dpy, parentwin, &(s->wa)))
     die("could not get embedding window attributes: 0x%lx",
         parentwin);
   s->x = 0;
@@ -771,7 +734,6 @@ static void
 setup(int num_of_lines)
 {
   XClassHint ch = { "dmenu", "dmenu" };
-  struct SetupData s;
   s.ch = &ch;
 
   set_lines_and_columns(num_of_lines);
@@ -780,16 +742,14 @@ setup(int num_of_lines)
   match();
   shrinkandcenter(&(s.x), &(s.y), mw, s.wa.height);
 
-  s.embed = embed;
   s.mw = mw;
   s.mh = mh;
   s.scheme = scheme;
-  s.dpy = dpy;
+  s.dpy = s.dpy;
   s.xic = xic;
   s.parentwin = parentwin;
   s.win = win;
   s.drw = drw;
-  s.grabfocus = grabfocus;
   initwinandinput(&s);
   win = s.win;
   xic = s.xic;
@@ -864,7 +824,7 @@ handleargs(int argc, char *argv[])
     else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
       palettes[palette][SchemeSel][ColFg] = argv[++i];
     else if (!strcmp(argv[i], "-w"))   /* embedding window id */
-      embed = argv[++i];
+      s.embed = argv[++i];
     else
       usage();
 
@@ -877,16 +837,16 @@ initxwin(void) {
 
   if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
     fputs("warning: no locale support\n", stderr);
-  if (!(dpy = XOpenDisplay(NULL)))
+  if (!(s.dpy = XOpenDisplay(NULL)))
     die("cannot open display");
-  screen = DefaultScreen(dpy);
-  root = RootWindow(dpy, screen);
-  if (!embed || !(parentwin = strtol(embed, NULL, 0)))
+  screen = DefaultScreen(s.dpy);
+  root = RootWindow(s.dpy, screen);
+  if (!s.embed || !(parentwin = strtol(s.embed, NULL, 0)))
     parentwin = root;
-  if (!XGetWindowAttributes(dpy, parentwin, &wa))
+  if (!XGetWindowAttributes(s.dpy, parentwin, &wa))
     die("could not get embedding window attributes: 0x%lx",
         parentwin);
-  drw = drw_create(dpy, screen, root, wa.width, wa.height);
+  drw = drw_create(s.dpy, screen, root, wa.width, wa.height);
   if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
   lrpad = drw->fonts->h;
@@ -905,11 +865,11 @@ int
 grabandreadandgetnumlines(int fast)
 {
   if (fast && !isatty(0)) {
-    grabkeyboard();
+    grabkeyboard(&s);
     return readstdingetnumlines();
   } else {
     int n = readstdingetnumlines();
-    grabkeyboard();
+    grabkeyboard(&s);
     return n;
   }
 }

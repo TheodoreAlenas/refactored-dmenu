@@ -27,10 +27,11 @@ SetupData
   XIC xic;
   Window parentwin, win;
   Drw *drw;
-  void (*grabfocus) (void);
 };
 
 
 void initwinandinput(struct SetupData *s);
+void grabfocus(struct SetupData *s);
+void grabkeyboard(const struct SetupData *s);
 
 #endif

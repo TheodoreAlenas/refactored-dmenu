@@ -1,3 +1,4 @@
+#include <time.h>
 #include "x-interface.h"
 #include "util.h"
 
@@ -29,8 +30,43 @@ initwinandinput(struct SetupData *s)
         XSelectInput(s->dpy, s->dws[s->i], FocusChangeMask);
       XFree(s->dws);
     }
-    s->grabfocus();
+    grabfocus(s);
   }
   drw_resize(s->drw, s->mw, s->mh);
+}
+
+void
+grabfocus(struct SetupData *s)
+{
+  struct timespec ts = { .tv_sec = 0, .tv_nsec = 10000000  };
+  Window focuswin;
+  int i, revertwin;
+
+  for (i = 0; i < 100; ++i) {
+    XGetInputFocus(s->dpy, &focuswin, &revertwin);
+    if (focuswin == s->win)
+      return;
+    XSetInputFocus(s->dpy, s->win, RevertToParent, CurrentTime);
+    nanosleep(&ts, NULL);
+  }
+  die("cannot grab focus");
+}
+
+void
+grabkeyboard(const struct SetupData *s)
+{
+  struct timespec ts = { .tv_sec = 0, .tv_nsec = 1000000  };
+  int i;
+
+  if (s->embed)
+    return;
+  /* try to grab keyboard, we may have to wait for another process to ungrab */
+  for (i = 0; i < 1000; i++) {
+    if (XGrabKeyboard(s->dpy, DefaultRootWindow(s->dpy), True, GrabModeAsync,
+                      GrabModeAsync, CurrentTime) == GrabSuccess)
+      return;
+    nanosleep(&ts, NULL);
+  }
+  die("cannot grab keyboard");
 }
 

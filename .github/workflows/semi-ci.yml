@@ -1,0 +1,17 @@
+name: Tiny partial tests emulating CI workflows
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} any testable subparts
+    runs-on: ubuntu-latest
+
+    steps:
+    #- uses: actions/checkout@v3
+    - name: make test
+      run: make test

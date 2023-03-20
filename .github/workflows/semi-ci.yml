@@ -1,8 +1,6 @@
 name: Tiny partial tests emulating CI workflows
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -12,6 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    #- uses: actions/checkout@v3
+    #- uses: actions/checkout@v1
     - name: make test
-      run: make test
+      run: echo ${{ github.workspace }} && make test

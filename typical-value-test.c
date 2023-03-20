@@ -1,4 +1,4 @@
-#include "stdio.h"
+#include <stdio.h>
 #include "typical-value.h"
 
 void dont_assert(char *str, int fact);

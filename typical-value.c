@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include "typical-value.h"
-#include "util.h"
 
 typedef struct {
   int max_length_found;

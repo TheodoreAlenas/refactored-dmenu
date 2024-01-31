@@ -2,7 +2,7 @@
 #include "typical-value.h"
 
 void dont_assert(char *str, int fact);
-void few_sequential_numbers(FunctionToRepeat f, void *extra_arguments);
+void few_values_one_extreme(FunctionToRepeat f, void *extra_arguments);
 void many_values_one_extreme(FunctionToRepeat f, void *extra_arguments);
 void many_values_linear(FunctionToRepeat f, void *extra_arguments);
 void many_values_big(FunctionToRepeat f, void *extra_arguments);
@@ -15,7 +15,7 @@ main()
 
   dont_assert(
       "with few samples, typical is the maximum width",
-      100 == call_with(few_sequential_numbers));
+      100 == call_with(few_values_one_extreme));
 
   dont_assert(
       "with many samples, extremes are thrown out",
@@ -64,7 +64,7 @@ dont_assert(char *str, int fact)
 
 
 void
-few_sequential_numbers(FunctionToRepeat f, void *extra_arguments)
+few_values_one_extreme(FunctionToRepeat f, void *extra_arguments)
 {
   for (int i = 0; i < 48; i++)
     f(5, extra_arguments);

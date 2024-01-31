@@ -29,11 +29,6 @@ struct item {
   int out;
 };
 
-struct container {
-  int width;
-  int height;
-};
-
 struct dimentions {
   int menu_width;
   int menu_height;
@@ -122,7 +117,7 @@ appenditem(struct item *item, struct item **list, struct item **last)
   *last = item;
 }
 
-static void
+static void  // TODO: move to other dir
 set_pages(void)
 {
   int i, n;
@@ -142,8 +137,8 @@ set_pages(void)
       break;
 }
 
-static void
-cleanup(void)  // TODO: move to other dir
+static void  // TODO: move to other dir
+cleanup(void)
 {
   size_t i;
 
@@ -176,22 +171,20 @@ cistrstr(const char *h, const char *n)
   return NULL;
 }
 
-static int
+static int  // TODO: move to other dir
 drawitem(struct item *item, int x, int y, int w, int is_odd)
 {
   if (item == sel)
     drw_setscheme(drw, s.scheme[SchemeSel]);
   else if (item->out)
     drw_setscheme(drw, s.scheme[SchemeOut]);
-  else if (is_odd)
-    drw_setscheme(drw, s.scheme[SchemeNorm]);
   else
-    drw_setscheme(drw, s.scheme[SchemeOdd]);
+    drw_setscheme(drw, s.scheme[SchemeNorm]);
 
   return drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
 }
 
-static void
+static void  // TODO: move to other dir
 drawgridinp(int starting_x, int starting_y, struct item *item)
 {
   int left_most = starting_x, top_most = starting_y + bh;
@@ -210,7 +203,7 @@ drawgridinp(int starting_x, int starting_y, struct item *item)
   }
 }
 
-static void
+static void  // TODO: move to other dir
 drawhorizinp(int x, int w, struct item *item)
 {
     x += inputw;
@@ -230,7 +223,7 @@ drawhorizinp(int x, int w, struct item *item)
     }
 }
 
-static void
+static void  // TODO: move to other dir
 drawmenu(void)
 {
   unsigned int curpos;
@@ -263,7 +256,7 @@ drawmenu(void)
   drw_map(drw, win, 0, 0, s.mw, s.mh);
 }
 
-static void
+static void  // TODO: move to other dir
 match(void)
 {
   static char **tokv = NULL;
@@ -283,7 +276,7 @@ match(void)
 
   matches = lprefix = lsubstr = matchend = prefixend = substrend = NULL;
   textsize = strlen(text) + 1;
-  for (item = items; item && item->text; item++) {
+  for (item = items; item && item->text; item++) {  // TODO: extract
     for (i = 0; i < tokc; i++)
       if (!fstrstr(item->text, tokv[i]))
         break;
@@ -362,7 +355,7 @@ movewordedge(int dir)
   }
 }
 
-static void
+static void  // TODO: move to other dir
 keypress(XKeyEvent *ev)
 {
   char buf[32];
@@ -569,7 +562,7 @@ draw:
   drawmenu();
 }
 
-static void
+static void  // TODO: move to other dir
 paste(void)
 {
   char *p, *q;
@@ -602,8 +595,6 @@ get_suggested_columns()
     return 4;
   else if (suggested_width < 600)
     return 3;
-  else if (suggested_width < 800)
-    return 2;
   return 1;
 }
 
@@ -644,7 +635,7 @@ readstdingetnumlines(void)
   return i;
 }
 
-static void
+static void  // TODO: move to other dir
 run(void)
 {
   XEvent ev;
@@ -682,7 +673,7 @@ run(void)
   }
 }
 
-static void
+static void  // TODO: move to other dir
 shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
 {
   /*
@@ -703,8 +694,8 @@ shrinkandcenter(int *x, int *y, int wa_width, int wa_height)
   *x = (wa_width - s.mw) / 2;
 }
 
-static void
-preparegeometry(struct SetupData *s)  // TODO: move to dir
+static void  // TODO: move to other dir
+preparegeometry(struct SetupData *s)
 {
   /* init appearance */
   for (s->j = 0; s->j < SchemeLast; s->j++)
@@ -735,7 +726,7 @@ set_lines_and_columns(int num_of_lines)
   lines = MIN(lines, calcneededlines(num_of_lines));
 }
 
-static void
+static void  // TODO: move to other dir
 setup(int num_of_lines)
 {
   XClassHint ch = { "dmenu", "dmenu" };
@@ -826,15 +817,16 @@ handleargs(int argc, char *argv[])
     else if (!strcmp(argv[i], "-sf"))  /* selected foreground color */
       palettes[palette][SchemeSel][ColFg] = argv[++i];
     else if (!strcmp(argv[i], "-w"))   /* embedding window id */
-      s.embed = argv[++i];
+      s.embed = argv[++i];  // TODO: change this thing, it depends on s
     else
       usage();
 
   return fast;
 }
 
-static void
-initxwin(void) {
+static void  // TODO: move to other dir
+initxwin(void)
+{
   XWindowAttributes wa;
 
   if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
@@ -863,7 +855,7 @@ considerbsdfail(void)
 #endif
 }
 
-int
+int  // TODO: move to other dir
 grabandreadandgetnumlines(int fast)
 {
   if (fast && !isatty(0)) {

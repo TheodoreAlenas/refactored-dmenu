@@ -1,5 +1,17 @@
 # Refactored DMenu
 
+## P.S.
+
+An early 2023 project I regret going about.
+It turns out that it's better to rebuild something at this scale.
+Also I went back to the default appearance of DMenu
+and I don't look like the screenshots below anymore.
+If you want to continue this project for yourself,
+you're more than welcome to do so,
+but I won't touch it or use it.
+
+## Original README content
+
 No matter how hard I looked around,
 nobody seems to have cleaned DMenu up for me.
 Perhaps we should do it together.

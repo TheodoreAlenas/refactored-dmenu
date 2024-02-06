@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "typical-value.h"
 #include "util.h"
 
@@ -21,7 +22,6 @@ init_array_to(int *array, size_t size, int value)
 void
 print(const SuggestedWidthStats *sws)
 {
-#include <stdio.h>
   for (int i = 0; i < sws->max_lengths_above; i++) {
     for (int j = 0; j < sws->lengths_above[i]; j += 100)
       printf("-");
